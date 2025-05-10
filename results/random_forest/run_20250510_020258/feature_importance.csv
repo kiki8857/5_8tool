@@ -1,0 +1,11 @@
+Feature,Importance
+Vibration_X_peak_freq,0.30450058650904865
+Force_X_wavelet_max,0.1978348490965058
+Force_Y_wp_aad_energy,0.1505826983964927
+Vibration_X_wp_add_entropy,0.10614050215308474
+Vibration_X_min,0.10194640445867628
+Force_Z_freq_std,0.06791481067076105
+Vibration_Y_freq_kurtosis,0.036010823474195236
+Force_X_wavelet_scale_4_ratio,0.01855196893560579
+Vibration_X_freq_centroid,0.009883387013866644
+AE_RMS_wavelet_max,0.006633969291763038

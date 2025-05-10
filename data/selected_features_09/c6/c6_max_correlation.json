@@ -1,0 +1,8 @@
+{
+    "max_pearson_abs": 0.9478140251042239,
+    "max_spearman_abs": 0.9917938440392685,
+    "max_pearson_feature": "Force_Z_wavelet_max",
+    "max_pearson_value": 0.9478140251042239,
+    "max_spearman_feature": "Force_Z_wavelet_max",
+    "max_spearman_value": 0.9917938440392685
+}

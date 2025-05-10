@@ -1,0 +1,31 @@
+{
+    "common_features": [
+        "Force_X_wavelet_scale_1_ratio",
+        "Force_X_wavelet_scale_16_ratio",
+        "Force_X_wp_ada_entropy",
+        "Force_X_wavelet_scale_8_ratio",
+        "Force_X_peak2peak",
+        "Vibration_Y_wavelet_scale_16_ratio",
+        "Force_X_wp_aad_entropy",
+        "Force_X_impulse_factor",
+        "Force_X_min",
+        "Force_X_wp_add_entropy",
+        "Vibration_X_wavelet_scale_16_ratio",
+        "Vibration_X_wavelet_scale_32_ratio",
+        "Force_X_kurtosis",
+        "Vibration_Y_wavelet_scale_32_ratio",
+        "Force_Z_wavelet_std",
+        "Force_X_wavelet_entropy",
+        "Force_X_freq_std",
+        "Force_Y_skewness",
+        "Force_Z_kurtosis",
+        "Vibration_X_skewness",
+        "Force_X_wp_dad_std",
+        "Vibration_X_wavelet_entropy",
+        "Force_Z_wp_add_entropy",
+        "Force_X_freq_mean"
+    ],
+    "pca_n_components": 5,
+    "min_correlation": 0.9,
+    "max_feature_correlation": 0.98
+}

@@ -1,0 +1,7 @@
+{
+    "hidden_sizes": "[256, 128, 64]",
+    "learning_rate": 0.0005,
+    "batch_size": 16,
+    "dropout_rate": 0.3,
+    "early_stop_patience": 30
+}

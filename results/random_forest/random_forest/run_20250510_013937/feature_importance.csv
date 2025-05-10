@@ -1,0 +1,11 @@
+Feature,Importance
+Vibration_X_wavelet_entropy,0.20841401896754466
+Vibration_X_wavelet_scale_16_ratio,0.20334334217245947
+Vibration_X_wavelet_scale_32_ratio,0.170227886721603
+Force_Y_wavelet_scale_32_ratio,0.11781627923996651
+Force_Y_skewness,0.1006051530285495
+Force_Y_wavelet_mean,0.07516746994950163
+Force_X_peak2peak,0.0592313274452132
+Vibration_X_skewness,0.03890879407870449
+Force_X_wp_dad_std,0.013175704188788535
+Force_X_wp_add_std,0.013110024207668994

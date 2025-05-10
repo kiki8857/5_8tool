@@ -1,0 +1,19 @@
+{
+    "window_size": 11,
+    "stride": 3,
+    "batch_size": 32,
+    "optimizer": "AdamW",
+    "learning_rate": 0.0007162786999897341,
+    "weight_decay": 1.1919481947918734e-06,
+    "scheduler": "OneCycleLR",
+    "max_lr_factor": 7.091283290110243,
+    "conv_layers": 3,
+    "first_conv_out": 64,
+    "kernel_size": 5,
+    "dropout_rate1": 0.1307919639315172,
+    "dropout_rate2": 0.18692543587413044,
+    "fc_units1": 256,
+    "fc_units2": 128,
+    "use_attention": false,
+    "attention_weight": 0.5854080177240857
+}

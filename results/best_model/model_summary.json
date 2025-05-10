@@ -1,0 +1,19 @@
+{
+    "model_name": "特征选择+优化超参数",
+    "model_type": "特征选择",
+    "param_type": "优化超参数",
+    "metrics": {
+        "r2_score": 0.8009885435961386,
+        "rmse": 17.881673912404512,
+        "mae": 14.729947578715477
+    },
+    "top_features": [
+        "Vibration_X_wavelet_scale_16_ratio",
+        "Vibration_Y_wavelet_scale_16_ratio",
+        "Vibration_X_wavelet_entropy",
+        "Force_X_wavelet_scale_16_ratio",
+        "Vibration_X_wavelet_scale_32_ratio"
+    ],
+    "timestamp": "20250510_043457",
+    "original_path": "../results/random_forest/20250510_043430_best_params_fontfix/run_20250510_043432_selected"
+}

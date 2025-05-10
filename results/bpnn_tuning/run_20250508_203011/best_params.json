@@ -1,0 +1,8 @@
+{
+    "hidden_layers": "[128, 64, 32]",
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "dropout_rate": 0.2,
+    "weight_decay": 1e-05,
+    "activation": "relu"
+}

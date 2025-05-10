@@ -1,0 +1,23 @@
+{
+    "best_params": {
+        "hidden_layers": "[128, 64, 32]",
+        "batch_size": 32,
+        "learning_rate": 0.001,
+        "dropout_rate": 0.2,
+        "weight_decay": 1e-05,
+        "activation": "relu"
+    },
+    "best_metrics": {
+        "mse": 62.135558974940324,
+        "rmse": 7.882611177455115,
+        "mae": 5.775998682334348,
+        "r2": 0.9166664488627672,
+        "test_loss": 0.08393601039424539
+    },
+    "num_combinations": 648,
+    "training_cutters": [
+        "c1",
+        "c4"
+    ],
+    "test_cutter": "c6"
+}

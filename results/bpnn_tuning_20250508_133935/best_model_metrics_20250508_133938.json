@@ -1,0 +1,19 @@
+{
+    "mse": 186.91767495406916,
+    "rmse": 13.671783898016717,
+    "mae": 10.482454628825083,
+    "r2": 0.7493140179117131,
+    "epochs_trained": 51,
+    "best_val_loss": 0.15346261858940125,
+    "params": {
+        "hidden_sizes": [
+            256,
+            128,
+            64
+        ],
+        "learning_rate": 0.0005,
+        "batch_size": 16,
+        "dropout_rate": 0.3,
+        "early_stop_patience": 30
+    }
+}
