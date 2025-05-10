@@ -77,24 +77,29 @@ LSTM模型利用时间序列特性，能够捕捉刀具磨损数据中的时序�
 - **序列设置**：
     - 序列长度：5（使用前5个切削点的数据预测下一点）
     - 使用MinMaxScaler而非StandardScaler进行特征归一化
+- **超参数设置** (通过调优获得):
+    - `hidden_size`: 512 (隐藏层大小)
+    - `num_layers`: 3 (LSTM层数)
+    - `dropout_rate`: 0.3 (Dropout比率)
+    - `learning_rate`: 0.0001
+    - `weight_decay`: 0
+    - `batch_size`: 128
 - **模型架构**：
-    - 双层LSTM（hidden_size=64, num_layers=2）
+    - 三层LSTM（hidden_size=512, num_layers=3）
     - Dropout率：0.3
     - 全连接输出层
 - **训练参数**：
-    - 学习率：0.001
-    - 批处理大小：未明确指定（默认使用整个训练集）
-    - 优化器：Adam（weight_decay=1e-5）
+    - 优化器：Adam（weight_decay=0）
     - 训练周期 (epochs)：1000（实际训练中启用了早停机制，patience=100）
     - 学习率调度器：ReduceLROnPlateau（patience=50, factor=0.5）
 - **模型保存位置**：
     - 脚本：`src/lstm_model.py`
-    - 模型文件：`/Users/xiaohudemac/cursor01/bishe/5_8tool/results/lstm/best_model.pt`
-    - 评估结果：`/Users/xiaohudemac/cursor01/bishe/5_8tool/results/lstm/evaluation.json`
+    - 模型文件：`/root/autodl-tmp/5_8tool/results/lstm_fixed/best_model.pt`
+    - 评估结果：`/root/autodl-tmp/5_8tool/results/lstm_fixed/evaluation.json`
 - **训练结果 (测试集 c6)**:
-    - **R² (决定系数)**: 0.9592
-    - **RMSE (均方根误差)**: 7.8483
-    - **MAE (平均绝对误差)**: 6.2824
+    - **R² (决定系数)**: 0.9770
+    - **RMSE (均方根误差)**: 5.8980
+    - **MAE (平均绝对误差)**: 4.6075
 
 ## 5. 结论
 
@@ -102,13 +107,13 @@ LSTM模型利用时间序列特性，能够捕捉刀具磨损数据中的时序�
 
 | 模型           | R²     | RMSE    | MAE     |
 |---------------|--------|---------|---------|
+| LSTM (最优超参数) | 0.9770 | 5.8980  | 4.6075  |
 | BPNN (最优超参数) | 0.9580 | 5.5984  | 4.4165  |
-| LSTM          | 0.9592 | 7.8483  | 6.2824  |
 | 随机森林        | 0.8010 | 17.8817 | 14.7299 |
 
-* BPNN和LSTM模型在R²指标上表现相当（分别为0.9580和0.9592），但BPNN在误差指标上更优（RMSE和MAE分别低约29%和30%）。
-* 深度学习模型（BPNN和LSTM）均显著优于随机森林模型。
-* LSTM模型虽能捕捉时序特性，但在当前任务中并未带来明显优势，这可能是因为铣刀磨损更依赖于当前切削状态而非历史状态。
-* BPNN模型结构更简单，计算效率更高，同时具有最低的误差，是当前最佳选择。
+* LSTM模型在R²指标上表现最好（0.9770），而BPNN在误差指标RMSE和MAE上略优（分别为5.5984和4.4165）。
+* 深度学习模型（LSTM和BPNN）均显著优于随机森林模型。
+* LSTM模型能有效捕捉时序特性，在当前任务中带来了更高的确定性系数(R²)，表明其对数据中的变化解释能力更强。
+* BPNN模型结构更简单，计算效率更高，同时保持较低的误差。
 
-优化后的BPNN模型可作为后续部署和应用的主要候选模型，用于指导实际生产中的刀具更换决策，从而提高加工效率和降低成本。 
+我们可以根据实际需求选择合适的模型：如果更关注整体预测准确性（R²），LSTM是更佳选择；如果更看重点预测误差小，BPNN可能更合适。两者均可作为后续部署和应用的候选模型，用于指导实际生产中的刀具更换决策，从而提高加工效率和降低成本。 

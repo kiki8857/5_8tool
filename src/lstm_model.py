@@ -20,6 +20,48 @@ import argparse
 import logging
 from tqdm import tqdm
 import json
+from matplotlib import font_manager
+import matplotlib as mpl
+import platform
+import sys
+
+# 配置中文字体支持
+def setup_chinese_font():
+    """配置中文字体支持"""
+    # 微米黑字体路径
+    wqy_microhei_path = '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc'
+    
+    # 如果文件存在，直接使用
+    if os.path.exists(wqy_microhei_path):
+        print(f"使用文泉驿微米黑字体: {wqy_microhei_path}")
+        font_path = wqy_microhei_path
+        
+        # 设置全局字体属性
+        mpl.rcParams['font.family'] = 'sans-serif'
+        mpl.rcParams['font.sans-serif'] = ['WenQuanYi Micro Hei'] + mpl.rcParams.get('font.sans-serif', [])
+        mpl.rcParams['axes.unicode_minus'] = False
+        
+        # 确保字体已缓存
+        os.system('fc-cache -fv') 
+        
+        # 返回字体属性对象
+        return font_manager.FontProperties(fname=font_path)
+    else:
+        # 如果找不到微米黑，尝试其他中文字体
+        potential_fonts = [
+            '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+            '/usr/share/fonts/truetype/arphic/uming.ttc',
+            '/usr/share/fonts/truetype/arphic/ukai.ttc'
+        ]
+        
+        for p in potential_fonts:
+            if os.path.exists(p):
+                print(f"使用中文字体: {p}")
+                return font_manager.FontProperties(fname=p)
+        
+        # 如果什么都找不到，返回默认字体
+        print("未找到适合的中文字体，使用默认字体")
+        return font_manager.FontProperties()
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,6 +70,9 @@ logger = logging.getLogger(__name__)
 # 设置随机种子以便结果可复现
 torch.manual_seed(42)
 np.random.seed(42)
+
+# 配置中文字体
+GLOBAL_FONT_PROPS = setup_chinese_font()
 
 class TimeSeriesDataset(Dataset):
     """时间序列数据集"""
@@ -194,14 +239,16 @@ class ModelTrainer:
         
         # 初始化模型架构
         self.input_size = None  # 将在加载数据时确定
-        self.hidden_size = 64
-        self.num_layers = 2
+        self.hidden_size = 512  # 使用调优后的参数
+        self.num_layers = 3     # 使用调优后的参数
         self.output_size = 1
+        self.dropout_rate = 0.3 # 使用调优后的参数
         self.model = None
         
         # 训练参数
-        self.batch_size = 8
-        self.learning_rate = 0.001
+        self.batch_size = 128 # 调整以匹配调优脚本的设置
+        self.learning_rate = 0.0001 # 使用调优后的参数
+        self.weight_decay = 0     # 使用调优后的参数
         self.epochs = 1000
         self.early_stop_patience = 100
         
@@ -339,12 +386,12 @@ class ModelTrainer:
             hidden_size=self.hidden_size,
             num_layers=self.num_layers,
             output_size=self.output_size,
-            dropout=0.3
+            dropout=self.dropout_rate # 使用self.dropout_rate
         )
         
         # 定义损失函数和优化器
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=1e-5)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.5, patience=50, verbose=True
         )
@@ -457,6 +504,9 @@ class ModelTrainer:
         """可视化预测结果"""
         logger.info("可视化预测结果...")
         
+        # 获取中文字体
+        font_props = self._get_chinese_font()
+        
         # 确保数据是一维数组
         targets = targets.flatten()
         predictions = predictions.flatten()
@@ -480,9 +530,9 @@ class ModelTrainer:
                 f'RMSE: {rmse:.4f}\nMAE: {mae:.4f}\nR²: {r2:.4f}', 
                 fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
         
-        plt.title(f'刀具 {self.test_cutter} 磨损预测结果对比图 (LSTM模型)', fontsize=16)
-        plt.xlabel('实际磨损值 (mm)', fontsize=14)
-        plt.ylabel('预测磨损值 (mm)', fontsize=14)
+        plt.title(f'刀具 {self.test_cutter} 磨损预测结果对比图 (LSTM模型)', fontproperties=font_props, fontsize=16)
+        plt.xlabel('实际磨损值 (mm)', fontproperties=font_props, fontsize=14)
+        plt.ylabel('预测磨损值 (mm)', fontproperties=font_props, fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()
         
@@ -505,10 +555,10 @@ class ModelTrainer:
         plt.fill_between(test_cut_seqs, predictions - abs_error, predictions + abs_error, 
                         color='gray', alpha=0.2, label='预测误差区间')
         
-        plt.title(f'刀具 {self.test_cutter} 磨损预测随切削次数的变化 (LSTM模型)', fontsize=16)
-        plt.xlabel('切削次数', fontsize=14)
-        plt.ylabel('磨损值 (mm)', fontsize=14)
-        plt.legend(fontsize=12)
+        plt.title(f'刀具 {self.test_cutter} 磨损预测随切削次数的变化 (LSTM模型)', fontproperties=font_props, fontsize=16)
+        plt.xlabel('切削次数', fontproperties=font_props, fontsize=14)
+        plt.ylabel('磨损值 (mm)', fontproperties=font_props, fontsize=14)
+        plt.legend(prop=font_props, fontsize=12)
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()
         
@@ -519,11 +569,11 @@ class ModelTrainer:
         plt.figure(figsize=(12, 8))
         plt.plot(self.history['train_loss'], label='训练损失', linewidth=2)
         plt.plot(self.history['val_loss'], label='验证损失', linewidth=2)
-        plt.title('LSTM模型训练历史', fontsize=16)
-        plt.xlabel('周期', fontsize=14)
-        plt.ylabel('损失', fontsize=14)
+        plt.title('LSTM模型训练历史', fontproperties=font_props, fontsize=16)
+        plt.xlabel('周期', fontproperties=font_props, fontsize=14)
+        plt.ylabel('损失', fontproperties=font_props, fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.7)
-        plt.legend(fontsize=12)
+        plt.legend(prop=font_props, fontsize=12)
         plt.tight_layout()
         
         # 保存图像
@@ -531,6 +581,11 @@ class ModelTrainer:
         
         plt.close('all')
         logger.info("可视化完成")
+    
+    def _get_chinese_font(self):
+        """获取中文字体"""
+        # 使用全局字体属性
+        return GLOBAL_FONT_PROPS
     
     def save_model(self, filename):
         """保存模型"""
