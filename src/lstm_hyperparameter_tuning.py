@@ -23,6 +23,11 @@ import time
 import itertools
 from tqdm import tqdm
 from matplotlib import font_manager
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
+
+# 设置CUDA的并行计算能力
+torch.backends.cudnn.benchmark = True
 
 # 配置中文字体支持
 try:
@@ -181,7 +186,7 @@ class LSTMModel(nn.Module):
 class LSTMHyperparameterTuner:
     """LSTM超参数调优器"""
     
-    def __init__(self, features_path, output_path, train_cutters=['c1', 'c4'], test_cutter='c6'):
+    def __init__(self, features_path, output_path, train_cutters=['c1', 'c4'], test_cutter='c6', num_workers=4):
         """
         初始化LSTM超参数调优器
         
@@ -190,11 +195,13 @@ class LSTMHyperparameterTuner:
             output_path: 输出路径
             train_cutters: 训练集刀具列表
             test_cutter: 测试集刀具
+            num_workers: 数据加载器使用的工作进程数
         """
         self.features_path = features_path
         self.output_path = output_path
         self.train_cutters = train_cutters
         self.test_cutter = test_cutter
+        self.num_workers = num_workers
         
         # 确保输出目录存在
         if not os.path.exists(output_path):
@@ -365,11 +372,13 @@ class LSTMHyperparameterTuner:
             dropout=dropout
         ).to(self.device)
         
-        # 数据加载器
+        # 数据加载器 - 增加num_workers和pin_memory提高数据加载速度
         train_loader = DataLoader(
             torch.utils.data.TensorDataset(self.X_train, self.y_train),
             batch_size=batch_size,
-            shuffle=True
+            shuffle=True,
+            num_workers=self.num_workers,
+            pin_memory=True
         )
         
         # 定义损失函数和优化器
@@ -391,6 +400,10 @@ class LSTMHyperparameterTuner:
         best_val_loss = float('inf')
         early_stop_counter = 0
         
+        # 将测试数据预先移至GPU
+        X_test_gpu = self.X_test.to(self.device)
+        y_test_gpu = self.y_test.to(self.device)
+        
         # 训练循环
         for epoch in range(self.epochs):
             # 训练模式
@@ -400,15 +413,15 @@ class LSTMHyperparameterTuner:
             # 训练一个周期
             for inputs, targets in train_loader:
                 # 将数据移至设备
-                inputs = inputs.to(self.device)
-                targets = targets.to(self.device)
+                inputs = inputs.to(self.device, non_blocking=True)
+                targets = targets.to(self.device, non_blocking=True)
                 
                 # 前向传播
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
                 
                 # 反向传播和优化
-                optimizer.zero_grad()
+                optimizer.zero_grad(set_to_none=True)  # 更高效的梯度清零
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
@@ -421,10 +434,8 @@ class LSTMHyperparameterTuner:
             # 验证模式
             model.eval()
             with torch.no_grad():
-                X_test = self.X_test.to(self.device)
-                y_test = self.y_test.to(self.device)
-                val_outputs = model(X_test)
-                val_loss = criterion(val_outputs, y_test).item()
+                val_outputs = model(X_test_gpu)
+                val_loss = criterion(val_outputs, y_test_gpu).item()
             
             # 更新学习率
             scheduler.step(val_loss)
@@ -442,7 +453,6 @@ class LSTMHyperparameterTuner:
                 early_stop_counter += 1
             
             if early_stop_counter >= self.patience:
-                logger.debug(f'提前停止训练，已经{self.patience}个周期没有改善')
                 break
         
         # 加载最佳模型
@@ -451,9 +461,8 @@ class LSTMHyperparameterTuner:
         # 最终评估
         model.eval()
         with torch.no_grad():
-            X_test = self.X_test.to(self.device)
+            predictions_scaled = model(X_test_gpu).cpu().numpy()
             y_test = self.y_test.numpy()
-            predictions_scaled = model(X_test).cpu().numpy()
         
         # 反标准化
         predictions = self.y_scaler.inverse_transform(predictions_scaled)
@@ -476,6 +485,57 @@ class LSTMHyperparameterTuner:
         }
         
         return metrics, history, model, best_model_state
+    
+    def _evaluate_param_combination(self, params):
+        """
+        评估单个参数组合
+        
+        参数:
+            params: 参数组合(hidden_size, num_layers, dropout, batch_size, learning_rate, weight_decay)
+            
+        返回:
+            result: 评估结果
+        """
+        hidden_size, num_layers, dropout, batch_size, learning_rate, weight_decay = params
+        
+        # 记录当前参数
+        current_params = {
+            'seq_length': self.current_seq_length,
+            'hidden_size': hidden_size,
+            'num_layers': num_layers,
+            'dropout': dropout,
+            'batch_size': batch_size,
+            'learning_rate': learning_rate,
+            'weight_decay': weight_decay
+        }
+        
+        param_start_time = time.time()
+        logger.info(f"评估参数组合: {current_params}")
+        
+        try:
+            # 训练和评估模型
+            metrics, history, model, model_state = self.train_eval_model(
+                hidden_size, num_layers, dropout, batch_size, learning_rate, weight_decay
+            )
+            
+            # 记录结果
+            result = {
+                'params': current_params,
+                'metrics': metrics,
+                'history': {
+                    'train_loss': history['train_loss'],
+                    'val_loss': history['val_loss']
+                },
+                'model_state': model_state
+            }
+            
+            param_time = time.time() - param_start_time
+            logger.info(f"参数组合评估完成 - R²: {metrics['r2']:.4f}, RMSE: {metrics['rmse']:.4f}, MAE: {metrics['mae']:.4f}, 耗时: {param_time:.2f}秒")
+            
+            return result
+        except Exception as e:
+            logger.error(f"评估参数组合时出错: {e}")
+            return None
     
     def tune_hyperparameters(self):
         """
@@ -503,6 +563,9 @@ class LSTMHyperparameterTuner:
                 logger.warning(f"序列长度 {seq_length} 的数据准备失败，跳过")
                 continue
             
+            # 保存当前序列长度
+            self.current_seq_length = seq_length
+            
             # 生成参数组合（除了seq_length）
             param_combinations = list(itertools.product(
                 self.param_grid['hidden_size'],
@@ -516,66 +579,23 @@ class LSTMHyperparameterTuner:
             total_combinations = len(param_combinations)
             logger.info(f"序列长度 {seq_length}，将评估 {total_combinations} 个超参数组合")
             
-            # 评估每个参数组合
-            for i, (hidden_size, num_layers, dropout, batch_size, learning_rate, weight_decay) in enumerate(param_combinations):
-                param_start_time = time.time()
+            # 使用tqdm显示进度条
+            for i, params in enumerate(tqdm(param_combinations, desc="超参数搜索进度")):
+                result = self._evaluate_param_combination(params)
                 
-                # 记录当前参数
-                current_params = {
-                    'seq_length': seq_length,
-                    'hidden_size': hidden_size,
-                    'num_layers': num_layers,
-                    'dropout': dropout,
-                    'batch_size': batch_size,
-                    'learning_rate': learning_rate,
-                    'weight_decay': weight_decay
-                }
-                
-                logger.info(f"评估参数组合 {i+1}/{total_combinations}: {current_params}")
-                
-                # 训练和评估模型
-                try:
-                    metrics, history, model, model_state = self.train_eval_model(
-                        hidden_size, num_layers, dropout, batch_size, learning_rate, weight_decay
-                    )
-                    
-                    # 记录结果
-                    result = {
-                        'params': current_params,
-                        'metrics': metrics,
-                        'history': {
-                            'train_loss': history['train_loss'],
-                            'val_loss': history['val_loss']
-                        }
-                    }
-                    
+                if result:
                     all_results.append(result)
                     
                     # 更新最佳参数
-                    if metrics['r2'] > best_r2:
-                        best_r2 = metrics['r2']
-                        best_params = current_params
-                        best_model_state = model_state
+                    if result['metrics']['r2'] > best_r2:
+                        best_r2 = result['metrics']['r2']
+                        best_params = result['params']
+                        best_model_state = result['model_state']
                         
                         # 保存最佳模型
-                        best_model = model
-                        torch.save(best_model.state_dict(), os.path.join(self.output_path, 'best_model.pt'))
+                        torch.save(best_model_state, os.path.join(self.output_path, 'best_model.pt'))
                         
                         logger.info(f"发现新的最佳参数组合，R²: {best_r2:.4f}")
-                    
-                    # 记录每个组合的性能
-                    logger.info(f"参数组合 {i+1} 的性能 - "
-                                f"R²: {metrics['r2']:.4f}, "
-                                f"RMSE: {metrics['rmse']:.4f}, "
-                                f"MAE: {metrics['mae']:.4f}, "
-                                f"训练了 {metrics['epochs_trained']} 个周期")
-                    
-                    param_time = time.time() - param_start_time
-                    logger.info(f"参数组合评估完成，耗时: {param_time:.2f}秒")
-                    
-                except Exception as e:
-                    logger.error(f"评估参数组合时出错: {e}")
-                    continue
         
         end_time = time.time()
         tuning_time = end_time - start_time
@@ -822,6 +842,8 @@ def main():
                        help='训练集刀具列表，用逗号分隔')
     parser.add_argument('--test_cutter', type=str, default='c6',
                        help='测试集刀具')
+    parser.add_argument('--num_workers', type=int, default=4,
+                       help='数据加载器使用的工作进程数')
     
     # 解析命令行参数
     args = parser.parse_args()
@@ -838,7 +860,8 @@ def main():
         features_path=args.features_path,
         output_path=output_path,
         train_cutters=train_cutters,
-        test_cutter=args.test_cutter
+        test_cutter=args.test_cutter,
+        num_workers=args.num_workers
     )
     
     # 运行超参数调优
