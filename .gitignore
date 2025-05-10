@@ -2,6 +2,7 @@
 data/raw/
 data/processed/
 备份数据/
+results/
 
 # Python
 __pycache__/
