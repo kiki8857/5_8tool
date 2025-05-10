@@ -446,48 +446,72 @@ class BPNNFinalModel:
         )
         cut_nums = test_data['cut_num'].values
         
-        # 创建预测与实际值对比图
-        plt.figure(figsize=(12, 6))
-        plt.plot(cut_nums, targets, 'b-', label='实际值')
-        plt.plot(cut_nums, predictions, 'r--', label='预测值')
-        plt.title(f'{self.test_cutter} 刀具磨损预测结果 (BPNN)')
-        plt.xlabel('切削次数')
-        plt.ylabel('磨损值 (mm)')
+        # 创建预测对比图 (散点图)
+        plt.figure(figsize=(12, 8))
+        plt.scatter(targets, predictions, alpha=0.7, color='blue', s=60)
+        
+        # 添加理想预测线
+        min_val = min(min(targets), min(predictions))
+        max_val = max(max(targets), max(predictions))
+        plt.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2)
+        
+        # 计算评估指标显示在图上
+        mse = mean_squared_error(targets, predictions)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(targets, predictions)
+        r2 = r2_score(targets, predictions)
+        
+        plt.text(min_val + 0.05*(max_val-min_val), max_val - 0.15*(max_val-min_val), 
+                f'RMSE: {rmse:.4f}\nMAE: {mae:.4f}\nR²: {r2:.4f}', 
+                fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
+        
+        plt.title(f'刀具 {self.test_cutter} 磨损预测结果对比图 (BP神经网络模型)', fontsize=16)
+        plt.xlabel('实际磨损值 (mm)', fontsize=14)
+        plt.ylabel('预测磨损值 (mm)', fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.7)
-        plt.legend()
+        plt.tight_layout()
+        
+        # 保存预测对比图
+        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_scatter.png'), dpi=300)
+        plt.close()
+        
+        # 创建预测序列图
+        plt.figure(figsize=(14, 8))
+        
+        # 绘制预测值和真实值随切削次数的变化
+        plt.plot(cut_nums, targets, 'b-', label='实际磨损值', linewidth=2)
+        plt.plot(cut_nums, predictions, 'r--', label='预测磨损值', linewidth=2)
+        
+        # 计算绝对误差并绘制误差区间
+        abs_error = np.abs(targets - predictions)
+        plt.fill_between(cut_nums, predictions - abs_error, predictions + abs_error, 
+                        color='gray', alpha=0.2, label='预测误差区间')
+        
+        plt.title(f'刀具 {self.test_cutter} 磨损预测随切削次数的变化 (BP神经网络模型)', fontsize=16)
+        plt.xlabel('切削次数', fontsize=14)
+        plt.ylabel('磨损值 (mm)', fontsize=14)
+        plt.legend(fontsize=12)
+        plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()
         
         # 保存图像
-        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_predictions.png'))
-        
-        # 创建散点图
-        plt.figure(figsize=(8, 8))
-        plt.scatter(targets, predictions, alpha=0.7)
-        plt.plot([min(targets), max(targets)], [min(targets), max(targets)], 'r--')
-        plt.title(f'{self.test_cutter} 实际值 vs 预测值 (BPNN)')
-        plt.xlabel('实际值')
-        plt.ylabel('预测值')
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.axis('equal')
-        plt.tight_layout()
-        
-        # 保存图像
-        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_scatter.png'))
+        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_predictions.png'), dpi=300)
         
         # 创建训练历史图
-        plt.figure(figsize=(12, 6))
-        plt.plot(self.history['train_loss'], label='训练损失')
-        plt.plot(self.history['val_loss'], label='验证损失')
-        plt.title('训练历史')
-        plt.xlabel('周期')
-        plt.ylabel('损失')
+        plt.figure(figsize=(12, 8))
+        plt.plot(self.history['train_loss'], label='训练损失', linewidth=2)
+        plt.plot(self.history['val_loss'], label='验证损失', linewidth=2)
+        plt.title('BP神经网络模型训练历史', fontsize=16)
+        plt.xlabel('周期', fontsize=14)
+        plt.ylabel('损失', fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.7)
-        plt.legend()
+        plt.legend(fontsize=12)
         plt.tight_layout()
         
         # 保存图像
-        plt.savefig(os.path.join(self.output_path, 'training_history.png'))
+        plt.savefig(os.path.join(self.output_path, 'training_history.png'), dpi=300)
         
+        plt.close('all')
         logger.info("可视化完成")
     
     def compare_with_models(self, other_model_results):

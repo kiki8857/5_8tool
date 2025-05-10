@@ -1,85 +1,91 @@
 # 铣刀寿命预测系统
 
-基于PHM 2010数据集的铣刀寿命预测系统，包括数据预处理、特征提取、特征选择和模型训练等模块。
+本项目基于PHM 2010数据集实现了铣刀寿命预测系统，采用多种机器学习和深度学习模型来预测铣刀的磨损程度。
 
-## 项目结构
+## 项目概述
+
+本系统使用铣削过程中采集的传感器数据（力传感器和振动传感器），提取特征，通过特征选择/降维，构建预测模型，实现对铣刀磨损量的准确预测。
+
+## 主要功能
+
+1. 数据预处理与特征提取
+2. 特征选择与降维
+3. 多模型铣刀寿命预测:
+   - 随机森林 (RF)
+   - BP神经网络 (BPNN)
+   - 长短期记忆网络 (LSTM)
+4. 模型性能评估与比较
+5. 可视化分析
+
+## 模型性能
+
+| 模型 | R² | RMSE | MAE |
+|------|-----|------|-----|
+| BPNN | 0.9580 | 5.5984 | 4.4165 |
+| LSTM | 0.9592 | 7.8483 | 6.2824 |
+| 随机森林 | 0.8010 | 17.8817 | 14.7299 |
+
+## 技术栈
+
+- Python 3.x
+- PyTorch (深度学习框架)
+- Scikit-learn (机器学习框架)
+- NumPy, Pandas (数据处理)
+- Matplotlib, Seaborn (数据可视化)
+
+## 代码结构
 
 ```
-├── data                       # 数据目录
-│   ├── raw                    # 原始数据
-│   ├── processed              # 预处理后的数据
-│   ├── features               # 提取的特征
-│   └── selected_features      # 选择的特征
-│
-├── models                     # 模型目录
-│   ├── bpnn                   # BP神经网络模型
-│   ├── lstm                   # LSTM模型
-│   └── ensemble               # 集成模型
-│
-└── src                        # 源代码
-    ├── data_preprocessing.py  # 数据预处理模块
-    ├── feature_extraction.py  # 特征提取模块
-    ├── feature_selection.py   # 特征选择模块
-    ├── bpnn_model.py          # BP神经网络模型
-    ├── lstm_model.py          # LSTM模型
-    └── ensemble_model.py      # 集成模型
+5_8tool/
+├── data/               # 数据目录
+│   ├── raw/            # 原始数据 (不包含在仓库中)
+│   ├── processed/      # 处理后的数据 (不包含在仓库中)
+│   └── selected_features/  # 特征选择后的数据
+├── src/                # 源代码
+│   ├── data_processing.py     # 数据预处理
+│   ├── feature_extraction.py  # 特征提取
+│   ├── feature_selection.py   # 特征选择与降维
+│   ├── random_forest_model.py # 随机森林模型
+│   ├── bpnn_final_model.py    # BP神经网络模型
+│   ├── lstm_model.py          # LSTM模型
+│   └── ...
+├── results/            # 结果保存目录
+│   ├── random_forest/  # 随机森林模型结果
+│   ├── bpnn_final/     # BP神经网络模型结果
+│   └── lstm/           # LSTM模型结果
+└── README.md           # 项目说明文档
 ```
 
-## 系统流程
+## 使用方法
 
-1. **数据预处理**：
-   - 读取PHM_2010原始切削数据
-   - 使用Z-score方法移除异常值
-   - 应用Butterworth低通滤波进行降噪
-   - 使用移动平均、Savitzky-Golay或指数平滑处理
-   - 标准化数据
+### 安装依赖
 
-2. **特征提取**：
-   - 时域特征：均值、标准差、RMS、峰值等
-   - 频域特征：使用FFT提取
-   - 时频域特征：使用连续小波变换提取
-   - 小波包特征
-   - 特征与磨损值关联并可视化
+```bash
+pip install -r requirements.txt
+```
 
-3. **特征选择**：
-   - 使用过滤法：相关系数、互信息
-   - 使用包装法：递归特征消除(RFE)
-   - 使用嵌入法：随机森林、LASSO
-   - 组合多种方法的结果
-   - 选择10个左右的最关键特征
+### 运行模型
 
-4. **模型训练与评估**：
-   - BP神经网络模型
-   - LSTM时间序列模型
-   - 集成模型（随机森林、XGBoost、梯度提升、Stacking）
-   - 使用c1和c4的数据训练，c6的数据测试
+1. 随机森林模型:
+```bash
+python src/random_forest_model.py --features_path=data/selected_features --output_path=results/random_forest
+```
 
-## 实验结果
+2. BP神经网络模型:
+```bash
+python src/bpnn_final_model.py --features_path=data/selected_features --output_path=results/bpnn_final
+```
 
-### 特征选择结果
+3. LSTM模型:
+```bash
+python src/lstm_model.py --features_path=data/selected_features --output_path=results/lstm
+```
 
-每个刀具选择了约10个最重要的特征，但不同刀具间的特征存在差异。三个刀具共有的特征仅有3个。
+## 结果示例
 
-### 模型性能比较
-
-| 模型 | MSE | RMSE | MAE | R² |
-|------|-----|------|-----|---|
-| 随机森林 | 795.48 | 28.20 | 23.68 | 0.474 |
-| 梯度提升 | 799.01 | 28.27 | 24.63 | 0.471 |
-| Stacking | 905.77 | 30.10 | 26.15 | 0.401 |
-| XGBoost | 965.10 | 31.07 | 26.62 | 0.362 |
-| LSTM | 5298.97 | 72.79 | 61.82 | -2.506 |
-| BPNN | 14059979.04 | 3749.66 | 2850.19 | -18855.64 |
-
-## 结论
-
-1. 传统机器学习模型在铣刀磨损预测任务上表现优于深度学习模型。
-2. 随机森林模型表现最好，R²达到0.474。
-3. 更多共同特征和改进的特征选择策略可能会进一步提高模型性能。
-
-## 未来工作
-
-1. 探索更多的特征组合和特征选择方法。
-2. 尝试不同的深度学习架构，如CNN-LSTM混合模型。
-3. 考虑迁移学习，使用其他刀具的数据来提高目标刀具的预测精度。
-4. 实现模型部署和在线预测功能。 
+各模型生成结果包括:
+- 模型权重文件
+- 评估指标(R², RMSE, MAE等)
+- 预测可视化图表
+- 特征重要性分析(随机森林)
+- 模型比较结果 

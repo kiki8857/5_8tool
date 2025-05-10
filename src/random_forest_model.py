@@ -201,7 +201,6 @@ class RandomForestModel:
         print("="*50)
         print(f"测试刀具: {self.test_cutter}")
         print(f"训练刀具: {', '.join(self.train_cutters)}")
-        print(f"数据类型: {'PCA降维数据' if self.use_pca else '特征选择数据'}")
         print(f"均方误差(MSE): {mse:.6f}")
         print(f"均方根误差(RMSE): {rmse:.6f}")
         print(f"平均绝对误差(MAE): {mae:.6f}")
@@ -231,6 +230,20 @@ class RandomForestModel:
             for i, (feature, importance) in enumerate(zip(importance_df['Feature'], importance_df['Importance'])):
                 print(f"{i+1}. {feature:<40} {importance:.6f}")
             print("-"*50)
+            
+            # 绘制特征重要性图
+            plt.figure(figsize=(12, 10))
+            top_n = 15  # 显示最重要的15个特征
+            sorted_idx = importance_df['Importance'].argsort()[::-1][:top_n]
+            top_features = importance_df.iloc[sorted_idx]
+            
+            plt.barh(range(top_n), top_features['Importance'], align='center', color='skyblue')
+            plt.yticks(range(top_n), top_features['Feature'], fontsize=12)
+            plt.title('随机森林模型特征重要性分析', fontsize=16)
+            plt.xlabel('相对重要性', fontsize=14)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.output_path, 'feature_importance.png'), dpi=300)
+            plt.close()
         
         # 可视化预测结果
         self.visualize_predictions(y_test, y_pred, test_cut_nums)
@@ -247,42 +260,55 @@ class RandomForestModel:
             test_cut_nums: (pd.Series): 测试集的切削次数
         """
         # 创建预测对比图
-        plt.figure(figsize=(10, 6))
-        plt.scatter(y_test, y_pred, alpha=0.7)
+        plt.figure(figsize=(12, 8))
+        plt.scatter(y_test, y_pred, alpha=0.7, color='blue', s=60)
         
         # 添加理想预测线
         min_val = min(min(y_test), min(y_pred))
         max_val = max(max(y_test), max(y_pred))
-        plt.plot([min_val, max_val], [min_val, max_val], 'r--')
+        plt.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2)
         
-        data_type = "PCA降维" if self.use_pca else "特征选择"
-        plt.title(f'刀具 {self.test_cutter} 的磨损预测 (随机森林 - {data_type})')
-        plt.xlabel('实际磨损值')
-        plt.ylabel('预测磨损值')
+        # 计算指标显示在图上
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        plt.text(min_val + 0.05*(max_val-min_val), max_val - 0.15*(max_val-min_val), 
+                f'RMSE: {rmse:.4f}\nMAE: {mae:.4f}\nR²: {r2:.4f}', 
+                fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
+        
+        plt.title(f'刀具 {self.test_cutter} 磨损预测结果对比图 (随机森林模型)', fontsize=16)
+        plt.xlabel('实际磨损值 (mm)', fontsize=14)
+        plt.ylabel('预测磨损值 (mm)', fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()
         
         # 保存预测对比图
-        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_scatter.png'))
+        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_scatter.png'), dpi=300)
         plt.close()
         
         # 创建预测序列图
-        plt.figure(figsize=(12, 6))
+        plt.figure(figsize=(14, 8))
         
         # 绘制预测值和真实值随切削次数的变化
-        plt.plot(test_cut_nums, y_test, 'b-', label='实际磨损值')
-        plt.plot(test_cut_nums, y_pred, 'r--', label='预测磨损值')
+        plt.plot(test_cut_nums, y_test, 'b-', label='实际磨损值', linewidth=2)
+        plt.plot(test_cut_nums, y_pred, 'r--', label='预测磨损值', linewidth=2)
         
-        plt.title(f'刀具 {self.test_cutter} 的磨损预测随切削次数的变化 (随机森林 - {data_type})')
-        plt.xlabel('切削次数')
-        plt.ylabel('磨损值')
-        plt.legend()
+        # 计算绝对误差并绘制误差条
+        abs_error = np.abs(y_test - y_pred)
+        plt.fill_between(test_cut_nums, y_pred - abs_error, y_pred + abs_error, color='gray', alpha=0.2, label='预测误差区间')
+        
+        plt.title(f'刀具 {self.test_cutter} 磨损预测随切削次数的变化 (随机森林模型)', fontsize=16)
+        plt.xlabel('切削次数', fontsize=14)
+        plt.ylabel('磨损值 (mm)', fontsize=14)
+        plt.legend(fontsize=12)
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()
         
         # 保存预测序列图
-        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_predictions.png'))
-        plt.close()
+        plt.savefig(os.path.join(self.output_path, f'{self.test_cutter}_predictions.png'), dpi=300)
+        plt.close('all')
     
     def run(self):
         """
@@ -335,8 +361,7 @@ def main():
     
     # 为输出路径添加时间戳和数据类型标识，确保每次运行结果保存在单独的文件夹中
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    data_type = "pca" if args.use_pca else "selected"
-    output_path = os.path.join(args.output_path, f"run_{timestamp}_{data_type}")
+    output_path = os.path.join(args.output_path, f"run_{timestamp}")
     
     # 初始化随机森林模型
     rf_model = RandomForestModel(
@@ -353,7 +378,6 @@ def main():
     print("\n" + "="*60)
     print(f"开始使用刀具 {', '.join(train_cutters)} 的数据训练随机森林模型")
     print(f"测试集使用刀具 {args.test_cutter} 的数据")
-    print(f"数据类型: {'PCA降维数据' if args.use_pca else '特征选择数据'}")
     print(f"使用特征数据路径: {args.features_path}")
     print(f"模型结果将保存至: {output_path}")
     print("="*60)

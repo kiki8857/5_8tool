@@ -1,0 +1,17 @@
+{
+    "hidden_sizes": [
+        64,
+        32
+    ],
+    "dropout_rate": 0.1,
+    "activation": "relu",
+    "learning_rate": 0.0001,
+    "batch_size": 64,
+    "optimizer": "adam",
+    "input_size": 24,
+    "train_cutters": [
+        "c1",
+        "c4"
+    ],
+    "test_cutter": "c6"
+}
